@@ -39,7 +39,7 @@ function draw() {
     if (character.sprite.x + character.sprite.width/4 > width) {
     character.walkLeft();
   } else if (character.sprite.x - character.sprite.width/4 < 0) {
-    walkRight();
+    character.walkRight();
  }
   
   })

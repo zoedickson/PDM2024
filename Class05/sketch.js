@@ -1,0 +1,77 @@
+let mike;
+let rotation = 0;
+let score = 0;
+let speed = 3;
+let timeRemaining = 15;
+let gameOver = false;
+let success, fail, normal;
+let latAttempt;
+let gameFont;
+
+
+function preload() {
+  mike = loadImage("assets/mike.png");
+  gameFont = loadFont("assets/PressStart2P-Regular.ttf");
+}
+
+function setup() {
+  createCanvas(400, 400);
+  imageMode(CENTER);
+  angleMode(DEGREES);
+
+  success = color('blue');
+  fail = color('red');
+}
+
+function draw() {
+  background(lastAttempt);
+
+  if(gameOver) {
+    gameDone();
+  } else {
+    playing();
+  }
+}
+
+function playing() {
+push();
+    translate(width/2,height/2);
+    rotate(rotation+= speed);
+    image(mike,0,0,height/2,mike.width/3,mike.height/3);
+  pop();
+
+  if (rotation >= 360)
+    rotation = 0;
+    
+  textSize(16);
+  text("Score: " + score, 20,20);
+  text("Time: " + ceil(timeRemaining), width-100,20);
+
+  timeRemaining -= deltaTime / 1000;
+  if (timeRemaining < 0)
+    latAttempt = normal;
+    gameOver = true;
+}
+
+function gameDone() {
+  text("Time's Up!", 100,100);
+  text("Score: " + score, 100,150);
+  text("Press Space to Play Again.", 100,200);
+}
+
+function keyTyped() {
+  if (key === ' ') {
+    if (gameOver) {
+      timeRemaining = 15;
+      score = 0;
+      gameOver = false;
+    }
+    else {
+      if (rotation >= 350 || rotation <= 10) {
+        score++;
+      } else {
+        score--;
+      }
+    }
+  }
+}
