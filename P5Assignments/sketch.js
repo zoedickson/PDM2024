@@ -1,186 +1,200 @@
-let bug, moveAni, deadAni;
-let bugSprites = [];
-let score = 0;
-let timeRemaining = 30;
-let startTime;
-let timerIsDone = false;
-let allBugs;
-let rotationAngles = [0,90,180,-90];
-let topWall, bottomWall, leftWall, rightWall;
-let gameState = "start";
+let spriteSheetFilenames = ["lady3.png"];
+let spriteSheets = [];
+let animations = [];
+let scoreIncreased;
+
+const GameState = {
+  Start: "Start",
+  Playing: "Playing",
+  GameOver: "GameOver"
+};
+
+let game = { score: 0, maxScore: 0, maxTime: 30, elapsedTime: 0, totalSprites: 20, state: GameState.Start, targetSprite: 2 };
 
 function preload() {
-  for(let i = 0; i < 4;i++){
-    bugSprites[i] = loadImage("assets/sprite" + i + ".png");
+  for(let i=0; i < spriteSheetFilenames.length; i++) {
+    spriteSheets[i] = loadImage("assets/" + spriteSheetFilenames[i]);
   }
 }
 
 function setup() {
-  createCanvas(800,800);
-  score = 0;
-  gameTime = 30;
-  timerIsDone = false;
-  startTime = 0;
-  gameState = "start";
-  walls();
-  allBugs = new Group();
+  createCanvas(400, 400);
+  imageMode(CENTER);
+  angleMode(DEGREES);
 
+  reset();
+}
+
+function reset() {
+  game.elapsedTime = 0;
+  game.score = 0;
+  game.totalSprites = 30;
+
+  animations = [];
+  for(let i=0; i < game.totalSprites; i++) {
+    animations[i] = new WalkingAnimation(random(spriteSheets),80,80,random(50,350),random(50,350),2,1,6,random([0,1]));
+  }
 }
 
 function draw() {
-  background('green');
-
-  if(gameState === "start"){
-    startScreen();
-    if(mouseIsPressed){
-      moreBugs(20);
-      startTime = millis();
-      gameState = 'play';
-    }
-  } else if(gameState === "play"){
-    timer();
-           allBugs.overlap(allBugs)
-        allBugs.collides(topWall, teleBot);
-        allBugs.collides(bottomWall, teleTop);
-        allBugs.collides(leftWall, teleRight);
-        allBugs.collides(rightWall, teleLeft);
-
-    allSprites.forEach(function(e){
-      if(e.mouse.pressing()) {
-        squish(e);
+  switch(game.state) {
+    case GameState.Playing:
+      background(220);
+  
+      for(let i=0; i < animations.length; i++) {
+        animations[i].draw();
       }
-    });
-    
+      fill(0);
+      textSize(30);
+      text("Score: " + game.score,75,40);
+      let currentTime = game.maxTime - game.elapsedTime;
+      text("Time: " + ceil(currentTime), 300,40);
+      game.elapsedTime += deltaTime / 1000;
+
+      if (currentTime < 0)
+        game.state = GameState.GameOver;
+      break;
+    case GameState.GameOver:
+      game.maxScore = max(game.score,game.maxScore);
+
+      background(0);
+      fill(255);
+      textSize(40);
+      textAlign(CENTER);
+      text("Game Over!",200,200);
+      textSize(35);
+      text("Score: " + game.score,200,270);
+      text("Max Score: " + game.maxScore,200,320);
+      break;
+    case GameState.Start:
+      background(0);
+      fill(255);
+      textSize(50);
+      textAlign(CENTER);
+      text("Bug Squish",200,200);
+      textSize(20);
+      text("Press Any Key to Start",200,250);
+      break;
+  }
+  
+}
+
+function keyPressed() {
+  switch(game.state) {
+    case GameState.Start:
+      game.state = GameState.Playing;
+      break;
+    case GameState.GameOver:
+      reset();
+      game.state = GameState.Playing;
+      break;
+  }
+}
+
+function mousePressed() {
+  switch(game.state) {
+    case GameState.Playing:
+      for (let i=0; i < animations.length; i++) {
+        let contains = animations[i].contains(mouseX,mouseY);
+        if (contains) {
+          if (animations[i].moving != 0) {
+            animations[i].stop();
+            game.score += 1;
+            scoreIncreased = true;
+          }
+        }
+        if(scoreIncreased){
+            animations[i].speed += 1;
+        }
+      }
+      
+      break;
+
+  }
+  scoreIncreased = false;
+}
+
+class WalkingAnimation {
+  constructor(spritesheet, sw, sh, dx, dy, animationLength, speed, framerate, vertical = false, offsetX = 0, offsetY = 0) {
+    this.spritesheet = spritesheet;
+    this.sw = sw;
+    this.sh = sh;
+    this.dx = dx;
+    this.dy = dy;
+    this.u = 0;
+    this.v = 0;
+    this.animationLength = animationLength;
+    this.currentFrame = 0;
+    this.moving = 1;
+    this.xDirection = 1;
+    this.offsetX = offsetX;
+    this.offsetY = offsetY;
+    this.speed = speed;
+    this.framerate = framerate*speed;
+    this.vertical = vertical;
+  }
+
+  draw() {
+
+
+    this.u = (this.moving != 0) ? this.currentFrame % this.animationLength : this.u;
     push();
-    textSize(20);
-    text('Time Ellapsed: ${gameTime} / 30',30,40);
-    text('Bugs Squished: ${score} / 30',30,70);
+    translate(this.dx,this.dy);
+    if (this.vertical)
+      rotate(90);
+    scale(this.xDirection,1);
+    
+
+
+    image(this.spritesheet,0,0,this.sw,this.sh,this.u*this.sw+this.offsetX,this.v*this.sh+this.offsetY,this.sw,this.sh);
     pop();
 
-    if(timerIsDone === true) {
-      allBugs.remove();
-      gameState = "end";
+    let proportionalFramerate = round(frameRate() / this.framerate);
+    if (frameCount % proportionalFramerate == 0) {
+      this.currentFrame++;
     }
-  } else if(gameState === "end") {
-    endScreen();
+  
+    if (this.vertical) {
+      this.dy += this.moving*this.speed;
+      this.move(this.dy,this.sw / 4,height - this.sw / 4);
+    }
+    else {
+      this.dx += this.moving*this.speed;
+      this.move(this.dx,this.sw / 4,width - this.sw / 4);
+    }
 
-    if(keyIsPressed){
-      if(keyCode === 13){
-        setup();
-      }
+    
+  }
+
+  move(position,lowerBounds,upperBounds) {
+    if (position > upperBounds) {
+      this.moveLeft();
+    } else if (position < lowerBounds) {
+      this.moveRight();
     }
   }
-}
 
-function moreBugs(num) {
-  for(let i = 0; i < num; i++) {
-    bug = new Sprite(random(10,width-10),random(10,height-12),50,50);
-
-    deadAni = bug.addAnimation("dead",bugSprites[4]);
-
-    moveAni = bug.addAnimation("move", bugSprites[0],bugSprites[1],bugSprites[2],bugSprites[3]);
-
-    moveAni.frameDelay = 6;
-    bug.scale = 0.5;
-    bug.rotation = floor(random(rotationAngles));
-
-    if(bug.rotation === 0) {
-      bug.move("up",5,8000);
-    } else if (bug.rotation === 90) {
-      bug.move("right",5,8000);
-    } else if (bug.rotation === 180) {
-      bug.move("down",5,8000);
-    } else if (bug.rotation -90) {
-      bug.move("left",5,8000);
-    }
-    bug.isDead = false;
-    allBugs.add(bug);
-    bug.overlaps(allBugs);
-    bug.rotation = floor(random(rotationAngles));
+  moveRight() {
+    this.moving = 1;
+    this.xDirection = 1;
+    this.v = 0;
   }
-}
 
-function timer() {
-  gameTime = int((millis() - startTime)/1000);
-  if(gameTime > 30) {
-    timerIsDone = true;
+  moveLeft() {
+    this.moving = -1;
+    this.xDirection = -1;
+    this.v = 0;
   }
-  return gameTime;
-}
 
-function startScreen() {
-  let startText = 'Click the bugs to save the picnic!\nSquish as many as you can in 30 seconds';
-  push();
-  stroke(0);
-  strokeWeight(3);
-  fill("cyan");
-  rect(width/2-300,height/2-100,600,200);
-  strokeWeight(0);
-  fill(0);
-  textAlign(CENTER);
-  textSize(20);
-  text(startText,width/2,height/2);
-  pop();
-}
-
-function endScreen() {
-  let endText = 'You squished ${score} bugs!\nPress RETURN to play again';
-  push();
-  stroke(0);
-  strokeWeight(3);
-  fill("cyan");
-  rect(width/2-300,height/2-100,600,200);
-  strokeWeight(0);
-  fill(0);
-  textAlign(CENTER);
-  textSize(20);
-  text(endText,width/2,height/2-25);
-  pop();
-}
-
-function walls() {
-  topWall = new Sprite(width/2,-100,width,50);
-  bottomWall = new Sprite(width/2,+100,width,50);
-  leftWall = new Sprite(-100,height/2,30,height);
-  rightWall = new Sprite(width+100,height/2,30,height);
-
-  topWall.collider = "static";
-  bottomWall.collider = "static";
-  leftWall.collider = "static";
-  rightWall.collider = "static";
-}
-
-function squish(item) {
-  if (item.isDead === false) {
-    item.isDead = true;
-    item.ani = "dead";
-    item.vel.x = 0;
-    item.vel.y = 0;
-    item.life = 60;
-    score++
+  contains(x,y) {
+    let insideX = x >= this.dx - 26 && x <= this.dx + 25;
+    let insideY = y >= this.dy - 35 && y <= this.dy + 35;
+    return insideX && insideY;
   }
-  if (allBugs.size() < 1) {
-    moreBugs(random(5,30));
-  }
-}
 
-function teleTop(bug){
-  bug.y = -10;
-  bug.rotation = 180;
-  bug.move("down",5,8000);
-}
-function teleBot(bug){
-  bug.y = height+10;
-  bug.rotation = 0;
-  bug.move("up",5,8000);
-}
-function teleLeft(bug){
-  bug.x = -10;
-  bug.rotation = 90;
-  bug.move("right",5,8000);
-}
-function teleRight(bug){
-  bug.x = width+10;
-  bug.rotation = -90;
-  bug.move("left",5,8000);
+  stop() {
+    this.moving = 0;
+    this.u = 1;
+    this.v = 1;
+  }
 }
