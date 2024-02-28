@@ -5,7 +5,7 @@ let speed = 3;
 let timeRemaining = 15;
 let gameOver = false;
 let success, fail, normal;
-let latAttempt;
+let lastAttempt;
 let gameFont;
 
 
@@ -49,7 +49,7 @@ push();
 
   timeRemaining -= deltaTime / 1000;
   if (timeRemaining < 0)
-    latAttempt = normal;
+    lastAttempt = normal;
     gameOver = true;
 }
 
